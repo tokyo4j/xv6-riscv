@@ -126,17 +126,17 @@ void kerneltrap() {
   uint64 scause = r_scause();
 
   if ((sstatus & SSTATUS_SPP) == 0)
-    panic("kerneltrap: not from supervisor mode");
+    panic(FG_RED "kerneltrap: not from supervisor mode");
   if (intr_get() != 0)
-    panic("kerneltrap: interrupts enabled");
+    panic(FG_RED "kerneltrap: interrupts enabled");
 
   if (!(scause & (1UL << 63)) && (scause & ~(1UL << 8))) {
-    printf("sepc=%p\n", r_sepc());
-    panic("non-ecall exception in supervisor mode");
+    // printf("sepc=%p\n", r_sepc());
+    panic(FG_RED "non-ecall exception in supervisor mode");
   }
 
   if ((which_dev = devintr()) == 0) {
-    printf("scause %p\n", scause);
+    printf(FG_RED "scause %p\n", scause);
     printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
     panic("kerneltrap");
   }

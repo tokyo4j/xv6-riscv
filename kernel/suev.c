@@ -143,14 +143,14 @@ __attribute__((naked)) static void _vm_run(struct trapframe *tf) {
 }
 
 static void vm_run(struct trapframe *tf) {
-  printf("VM[%d]: starting\n", tf->tp);
+  // printf("VM[%d]: starting\n", tf->tp);
 reenter:
   _vm_run(tf);
   if (r_scause() == 10) {
     // ecall
     if (tf->a7 == 0) {
       // yield
-      printf("VM[%d]: yielded\n", tf->tp);
+      // printf("VM[%d]: yielded\n", tf->tp);
       tf->epc += 4;
     } else if (tf->a7 == 1) {
       // print
@@ -185,13 +185,12 @@ reenter:
         "reserved",
         "guest_store_page_fault",
     };
-    printf("VM[%d]: unexpected exception\n"
-           "desc=%s, epc=%p, tval=%p\n",
-           tf->tp, riscv_excp_names[r_scause()], tf->epc, r_stval());
+    printf(FG_RED "VM[%d]: unexpected exception:%s\n", tf->tp,
+           riscv_excp_names[r_scause()]);
     while (1)
       ;
   } else {
-    panic("VM[%d]: unexpected interrupt");
+    panic(FG_RED "VM[%d]: unexpected interrupt");
   }
 }
 
@@ -245,20 +244,53 @@ struct trapframe *make_vm_tf(uint64 asid) {
   return tf;
 }
 
+void print_rmpe(struct rmpe *rmpe) {
+  printf("RMP Entry(");
+  if (rmpe->attr.type == RMPE_MERGEABLE) {
+    printf("SHARABLE) ");
+  } else if (rmpe->attr.type == RMPE_SHARED) {
+    printf("FREE) \n");
+    return;
+  } else {
+    return;
+  }
+  printf("ASID=");
+  if (rmpe->attr.fixed) {
+    struct rmpe *rmple = (void *)(rmpe->attr.gpn << 12);
+    printf("[ ");
+    for (int i = 0; i < 256; i++) {
+      if (rmple[i].attr.validated)
+        printf("%d ", i);
+    }
+    printf("] ");
+  } else {
+    printf("[ %d ] ", rmpe->attr.asid);
+  }
+  printf("FIXED=%d\n", rmpe->attr.fixed);
+}
+
 void suev_test() {
   printf("RMP base:%p len:%p\n", _rmp_start, _rmp_size);
   printf("Testing SUEV features...\n");
 
   asm volatile("csrw 0x6c0, %0" : : "r"(_rmp_start)); // CSR_HRMPBASE=0x6c0
   asm volatile("csrw 0x6c1, %0" : : "r"(_rmp_size));  // CSR_HRMP=0x6c1
+#define RMPE(spa)                                                              \
+  (struct rmpe *)(_rmp_start + (uint64)(spa) / 4096 * sizeof(struct rmpe))
 
   struct trapframe *tf0, *tf1;
 
-  tf0 = make_vm_tf(10);
-  tf1 = make_vm_tf(11);
+  tf0 = make_vm_tf(1);
+  tf1 = make_vm_tf(2);
 
   w_hstatus(r_hstatus() | HSTATUS_SPV);
   w_sstatus(r_sstatus() | SSTATUS_SPP);
+
+  struct rmpe *rmpe0 = RMPE(VM_PAGE(tf0->tp, 32));
+  struct rmpe *rmpe1 = RMPE(VM_PAGE(tf1->tp, 32));
+
+  print_rmpe(rmpe0);
+  print_rmpe(rmpe1);
 
   vm_run(tf0);
   vm_run(tf1);
@@ -275,8 +307,15 @@ void suev_test() {
   sfence_vma();
   // fill freed page with garbage
   memset((char *)VM_PAGE(tf1->tp, 32), 'x', 4096);
+
+  print_rmpe(rmpe0);
+  print_rmpe(rmpe1);
+
   vm_run(tf0);
   vm_run(tf1);
+
+  while (1)
+    ;
 
   printf("Unmerging pages...\n");
   punmerge((uint64)VM_PAGE(tf1->tp, 32), (uint64)VM_PAGE(tf0->tp, 32), tf1->tp);
@@ -293,6 +332,7 @@ void suev_test() {
   vm_run(tf1);
 
   // Let VM1 try to access VM0's FIXED MERGEABLE page
+  rmpupdate((uint64)leaf, (union rmpe_attr){.type = RMPE_LEAF}.bits);
   pfix((uint64)VM_PAGE(tf0->tp, 32), (uint64)leaf);
   vm_run(tf0);
   vm_run(tf1);

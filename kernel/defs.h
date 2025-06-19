@@ -80,6 +80,8 @@ void printf(char *, ...);
 void panic(char *) __attribute__((noreturn));
 void printfinit(void);
 
+#define FG_RED "\e[38;5;196m"
+
 // proc.c
 int cpuid(void);
 void exit(int);

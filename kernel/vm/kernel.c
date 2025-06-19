@@ -75,14 +75,11 @@ void main() {
   w_satp(MAKE_ATP(gpt2));
 
   char *mergeable_area = (void *)(4096UL * 32);
-  memcpy(mergeable_area, "Hello, World", sizeof("Hello, World"));
-  // if (r_tp() == 10UL)
-  //   mergeable_area[0] = 'x'; // ERROR on pmerge
+  memcpy(mergeable_area, "hello", sizeof("hello"));
+  // if (r_tp() == 2UL)
+  //   memcpy(mergeable_area, "kitty", sizeof("kitty"));
   print("Wrote mergeable area:");
   print(mergeable_area);
-
-  char *private_area = (void *)(4096UL * 16);
-  memcpy(private_area, "Hello, Mom", sizeof("Hello, Mom"));
 
   // let hypervisor merge the page
   yield();
@@ -91,7 +88,8 @@ void main() {
   // *mergeable_area = 'x'; // ERROR
 
   // read-access the merged page
-  print("Reading mergeable area: ");
+  print("Writing mergeable area: ");
+  *mergeable_area = 'x'; // ERROR
   print(mergeable_area);
 
   // let hypervisor unmerge the page
