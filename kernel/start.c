@@ -6,9 +6,37 @@
 
 void main();
 void timerinit();
+void pse_entry();
 
 // entry.S needs one stack per CPU.
 __attribute__ ((aligned (16))) char stack0[4096 * NCPU];
+// stack for M-mode
+__attribute__ ((aligned (16))) char m_stack[4096 * NCPU];
+
+#define CSR_MPSEC 0xbc0 /* page-success exception control */
+#define CSR_MPSEC_ENABLE 1
+#define CSR_MPSEC_DISABLE 2
+#define CSR_MPSEC_ACCEPT 4
+#define CSR_MPSEC_REJECT 8
+#define CSR_MPSEPA 0xbc1 /* page-success exception physical address */
+
+// memory region inaccessible to S-mode
+__attribute__ ((aligned (4096))) char enclave[4096] = "This is enclave";
+uint64 enclave_va = PHYSTOP + 4096;
+
+void
+pse_handler(void)
+{
+  uint64 va, pa;
+  asm volatile("csrr %0, mtval" : "=r"(va));
+  asm volatile("csrr %0, %1" : "=r"(pa) : "i"(CSR_MPSEPA));
+  if (va == enclave_va && pa == (uint64)enclave) {
+    /* Reject accesses to the enclave based on its VA and PA */
+    asm volatile("csrw %0, %1" :: "i"(CSR_MPSEC), "r"(CSR_MPSEC_REJECT));
+  } else {
+    asm volatile("csrw %0, %1" :: "i"(CSR_MPSEC), "r"(CSR_MPSEC_ACCEPT));
+  }
+}
 
 // entry.S jumps here in machine mode on stack0.
 void
@@ -43,6 +71,14 @@ start()
   // keep each CPU's hartid in its tp register, for cpuid().
   int id = r_mhartid();
   w_tp(id);
+
+  // enable page-success exception
+  asm volatile("csrw %0, %1" :: "i"(CSR_MPSEC), "r"(CSR_MPSEC_ENABLE));
+  // set machine mode exception vector
+  asm volatile("csrw mtvec, %0" :: "r" (pse_entry));
+  // store M-mode stack in mscratch
+  uint64 stack_addr = (uint64)m_stack + (r_mhartid() + 1) * 4096;
+  asm volatile("csrw mscratch, %0" :: "r" (stack_addr));
 
   // switch to supervisor mode and jump to main().
   asm volatile("mret");

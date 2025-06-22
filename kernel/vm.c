@@ -17,6 +17,9 @@ extern char etext[];  // kernel.ld sets this to end of kernel code.
 
 extern char trampoline[]; // trampoline.S
 
+extern char enclave[4096];
+extern uint64 enclave_va;
+
 // Make a direct-map page table for the kernel.
 pagetable_t
 kvmmake(void)
@@ -45,6 +48,8 @@ kvmmake(void)
   // the highest virtual address in the kernel.
   kvmmap(kpgtbl, TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
 
+  kvmmap(kpgtbl, enclave_va, (uint64)enclave, 4096, PTE_R | PTE_W | PTE_X);
+
   // allocate and map a kernel stack for each process.
   proc_mapstacks(kpgtbl);
   
@@ -70,6 +75,9 @@ kvminithart()
 
   // flush stale entries from the TLB.
   sfence_vma();
+
+  // Try accessing to the enclave. This should be rejected.
+  printf("enclave content=\"%s\"\n\n", (char *)enclave_va);
 }
 
 // Return the address of the PTE in page table pagetable
