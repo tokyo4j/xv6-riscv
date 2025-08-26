@@ -9,8 +9,19 @@ SECTIONS
    */
   . = 0x80000000;
 
+  PROVIDE(firmware_start = .);
+  .text.firmware : {
+    kernel/firmware/entry.o(_entry)
+    kernel/firmware/entry.o(.text .text.*)
+    kernel/firmware/*.o(.text .text.*)
+  }
+  .data.firmware : {
+    kernel/firmware/*.o(.srodata .srodata.* .rodata .rodata.* .sdata .sdata.* .data .data.*)
+  }
+  PROVIDE(firmware_end = .);
+  . = ALIGN(0x1000);
+
   .text : {
-    kernel/entry.o(_entry)
     *(.text .text.*)
     . = ALIGN(0x1000);
     _trampoline = .;

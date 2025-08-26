@@ -6,6 +6,9 @@
 
 volatile static int started = 0;
 
+// entry.S needs one stack per CPU.
+__attribute__ ((aligned (16))) char stack0[4096 * NCPU];
+
 // start() jumps here in supervisor mode on all CPUs.
 void
 main()

@@ -1,14 +1,11 @@
-#include "types.h"
-#include "param.h"
-#include "memlayout.h"
-#include "riscv.h"
-#include "defs.h"
+#include "../types.h"
+#include "../param.h"
+#include "../memlayout.h"
+#include "../riscv.h"
+#include "../defs.h"
 
-void main();
-void timerinit();
-
-// entry.S needs one stack per CPU.
-__attribute__ ((aligned (16))) char stack0[4096 * NCPU];
+static void timerinit();
+extern char firmware_start[], firmware_end[];
 
 // entry.S jumps here in machine mode on stack0.
 void
@@ -49,7 +46,7 @@ start()
 }
 
 // ask each hart to generate timer interrupts.
-void
+static void
 timerinit()
 {
   // enable supervisor-mode timer interrupts.
