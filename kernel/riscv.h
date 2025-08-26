@@ -13,11 +13,23 @@
     asm volatile("csrw " #name ", %0" : : "r" (x)); \
   }
 
+#define DEF_CUSTOM_CSR(name) \
+  static INLINE uint64 r_##name() { \
+    uint64 x; \
+    asm volatile("csrr %0, %1" : "=r"(x) : "i"(CSR_##name)); \
+    return x; \
+  } \
+  \
+  static INLINE void w_##name(uint64 x) { \
+    asm volatile("csrw %0, %1" :: "i"(CSR_##name), "r"(x)); \
+  }
+
 DEF_CSR(mhartid)
 DEF_CSR(mstatus)
 DEF_CSR(mepc)
 DEF_CSR(mcause)
 DEF_CSR(sstatus)
+DEF_CSR(sip)
 DEF_CSR(sie)
 DEF_CSR(mie)
 DEF_CSR(sepc)
@@ -33,6 +45,19 @@ DEF_CSR(scause)
 DEF_CSR(stval)
 DEF_CSR(mcounteren)
 DEF_CSR(time)
+DEF_CSR(mtval)
+DEF_CSR(mtvec)
+DEF_CSR(mscratch)
+
+#define CSR_MPSEC 0xbc0 /* page-success exception control */
+#define CSR_MPSEC_ENABLE 1
+#define CSR_MPSEC_DISABLE 2
+#define CSR_MPSEC_ACCEPT 4
+#define CSR_MPSEC_REJECT 8
+#define CSR_MPSEPA 0xbc1 /* page-success exception physical address */
+
+DEF_CUSTOM_CSR(MPSEC)
+DEF_CUSTOM_CSR(MPSEPA)
 
 // Machine Status Register, mstatus
 
@@ -126,6 +151,43 @@ sfence_vma()
 
 typedef uint64 pte_t;
 typedef uint64 *pagetable_t; // 512 PTEs
+
+enum RISCVException {
+    RISCV_EXCP_NONE = -1, /* sentinel value */
+    RISCV_EXCP_INST_ADDR_MIS = 0x0,
+    RISCV_EXCP_INST_ACCESS_FAULT = 0x1,
+    RISCV_EXCP_ILLEGAL_INST = 0x2,
+    RISCV_EXCP_BREAKPOINT = 0x3,
+    RISCV_EXCP_LOAD_ADDR_MIS = 0x4,
+    RISCV_EXCP_LOAD_ACCESS_FAULT = 0x5,
+    RISCV_EXCP_STORE_AMO_ADDR_MIS = 0x6,
+    RISCV_EXCP_STORE_AMO_ACCESS_FAULT = 0x7,
+    RISCV_EXCP_U_ECALL = 0x8,
+    RISCV_EXCP_S_ECALL = 0x9,
+    RISCV_EXCP_VS_ECALL = 0xa,
+    RISCV_EXCP_M_ECALL = 0xb,
+    RISCV_EXCP_INST_PAGE_FAULT = 0xc, /* since: priv-1.10.0 */
+    RISCV_EXCP_LOAD_PAGE_FAULT = 0xd, /* since: priv-1.10.0 */
+    RISCV_EXCP_STORE_PAGE_FAULT = 0xf, /* since: priv-1.10.0 */
+    RISCV_EXCP_DOUBLE_TRAP = 0x10,
+    RISCV_EXCP_SW_CHECK = 0x12, /* since: priv-1.13.0 */
+    RISCV_EXCP_HW_ERR = 0x13, /* since: priv-1.13.0 */
+    RISCV_EXCP_INST_GUEST_PAGE_FAULT = 0x14,
+    RISCV_EXCP_LOAD_GUEST_ACCESS_FAULT = 0x15,
+    RISCV_EXCP_VIRT_INSTRUCTION_FAULT = 0x16,
+    RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT = 0x17,
+    RISCV_EXCP_INST_SUCCESS = 0x18,
+    RISCV_EXCP_LOAD_SUCCESS = 0x19,
+    RISCV_EXCP_STORE_SUCCESS = 0x1a,
+    RISCV_EXCP_SEMIHOST = 0x3f,
+};
+
+enum EnclaveInstruction {
+  ECREATE = 0x123450,
+  EADD = 0x123451,
+  EENTER = 0x123452,
+  EEXIT = 0x123453,
+};
 
 #endif // __ASSEMBLER__
 

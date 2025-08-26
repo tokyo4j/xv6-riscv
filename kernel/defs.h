@@ -10,6 +10,7 @@ struct stat;
 struct superblock;
 
 void            main(void);
+void            enclave_main(void);
 
 // bio.c
 void            binit(void);

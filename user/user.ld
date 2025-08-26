@@ -28,6 +28,15 @@ SECTIONS
     *(.data .data.*)
   }
 
+  .enclave : {
+    . = ALIGN(4096);
+    PROVIDE(enclave_start = .);
+    *(.enclave.text.entry)
+    *(.enclave.*)
+    . = ALIGN(4096);
+    PROVIDE(enclave_end = .);
+  }
+
   .bss : {
     . = ALIGN(16);
     *(.sbss .sbss.*) /* do not need to distinguish this from .bss */

@@ -4,6 +4,7 @@ U=user
 OBJS = \
   $K/firmware/entry.o \
   $K/firmware/firmware.o \
+  $K/enclave.o \
   $K/console.o \
   $K/printf.o \
   $K/uart.o \
@@ -59,7 +60,7 @@ LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
-CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2
+CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -fpie
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding
@@ -140,20 +141,21 @@ UPROGS=\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
+	$U/_etest\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
 
 -include kernel/*.d kernel/firmware/*.d user/*.d
 
-clean: 
+clean:
 	find . -regextype posix-extended \
 	  -regex '.*\.(tex|dvi|idx|aux|log|ind|ilg|o|d|asm|sym)' \
 	  -delete
 	rm -rf $K/kernel fs.img \
-	mkfs/mkfs .gdbinit \
-        $U/usys.S \
-	$(UPROGS)
+		mkfs/mkfs .gdbinit \
+    $U/usys.S \
+		$(UPROGS)
 
 # try to generate a unique GDB port
 GDBPORT = $(shell expr `id -u` % 5000 + 25000)
