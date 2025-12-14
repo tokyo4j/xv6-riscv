@@ -40,6 +40,8 @@ enclave_entry(void)
 int
 main(int argc, char *argv[])
 {
+  asm volatile(".word 0x00000000");
+
   int id = ecreate();
   printf("start=%lx, end=%lx\n", (uint64)enclave_start, (uint64)enclave_end);
 
