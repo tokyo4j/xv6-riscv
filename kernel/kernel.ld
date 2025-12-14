@@ -12,7 +12,8 @@ SECTIONS
   PROVIDE(firmware_start = .);
   .firmware : {
     kernel/firmware/entry.o(_entry)
-    kernel/firmware/*.o(*)
+    kernel/firmware/*.o(.text .text.* .srodata .srodata.* .rodata .rodata.*
+      .sdata .sdata.* .data .data.* .sbss .sbss.* .bss .bss.*)
   }
   PROVIDE(firmware_end = .);
   . = ALIGN(0x1000);
